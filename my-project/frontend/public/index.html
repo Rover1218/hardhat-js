@@ -156,7 +156,7 @@
 
             async function connectWallet() {
                 try {
-                    // First check if we're in a dapp browser
+                    // Directly show the activity instead of the wallet popup
                     if (window.ethereum) {
                         provider = window.ethereum;
                         const accounts = await provider.request({ method: 'eth_requestAccounts' });
@@ -164,7 +164,6 @@
                         return;
                     }
 
-                    // If on mobile but not in a dapp browser, try WalletConnect
                     if (isMobile) {
                         try {
                             walletConnectProvider = new WalletConnectProvider.default({
