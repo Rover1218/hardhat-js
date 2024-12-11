@@ -152,6 +152,7 @@
             const connectWalletBtn = document.getElementById('connect-wallet');
             const disconnectBtn = document.getElementById('disconnect-wallet');
             let provider = null;
+            let walletConnectProvider = null;
 
             async function connectWallet() {
                 try {
@@ -165,24 +166,34 @@
 
                     // If on mobile but not in a dapp browser, try WalletConnect
                     if (isMobile) {
-                        provider = new WalletConnectProvider.default({
-                            rpc: {
-                                1: "https://ethereum.publicnode.com",
-                                56: "https://bsc-dataseed.binance.org",
-                                137: "https://polygon-rpc.com"
-                            },
-                            chainId: 1
-                        });
-
                         try {
-                            await provider.enable();
-                            const accounts = await provider.request({ method: 'eth_accounts' });
-                            handleSuccessfulConnection(accounts[0]);
-                            return;
+                            walletConnectProvider = new WalletConnectProvider.default({
+                                rpc: {
+                                    1: "https://ethereum.publicnode.com",
+                                    56: "https://bsc-dataseed.binance.org",
+                                    137: "https://polygon-rpc.com"
+                                },
+                                chainId: 1
+                            });
+
+                            await walletConnectProvider.enable();
+                            provider = walletConnectProvider;
+
+                            const accounts = await walletConnectProvider.request({
+                                method: 'eth_accounts'
+                            });
+
+                            if (accounts && accounts.length > 0) {
+                                handleSuccessfulConnection(accounts[0]);
+                            } else {
+                                throw new Error('No accounts found');
+                            }
                         } catch (wcError) {
-                            console.log("WalletConnect failed, trying deep links");
+                            console.log("WalletConnect failed:", wcError);
                             handleMobileDeepLinks();
                         }
+                    } else {
+                        alert('Please install MetaMask or use a mobile wallet!');
                     }
                 } catch (error) {
                     console.error('Connection error:', error);
@@ -192,12 +203,18 @@
 
             async function disconnectWallet() {
                 try {
+                    if (walletConnectProvider) {
+                        await walletConnectProvider.disconnect();
+                        walletConnectProvider = null;
+                    }
                     if (provider && provider.disconnect) {
                         await provider.disconnect();
                     }
+                    provider = null;
                     handleDisconnection();
                 } catch (error) {
                     console.error('Disconnect error:', error);
+                    handleDisconnection(); // Force UI reset even if disconnect fails
                 }
             }
 
