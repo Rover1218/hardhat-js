@@ -156,7 +156,6 @@
 
             async function connectWallet() {
                 try {
-                    // Directly show the activity instead of the wallet popup
                     if (window.ethereum) {
                         provider = window.ethereum;
                         const accounts = await provider.request({ method: 'eth_requestAccounts' });
@@ -164,39 +163,54 @@
                         return;
                     }
 
-                    if (isMobile) {
-                        try {
-                            walletConnectProvider = new WalletConnectProvider.default({
-                                rpc: {
-                                    1: "https://ethereum.publicnode.com",
-                                    56: "https://bsc-dataseed.binance.org",
-                                    137: "https://polygon-rpc.com"
-                                },
-                                chainId: 1
-                            });
+                    // Initialize WalletConnect
+                    walletConnectProvider = new WalletConnectProvider.default({
+                        rpc: {
+                            11155111: "https://eth-sepolia.g.alchemy.com/v2/l5Iy9shDpSYya_PKiuV98NGWyS1GNNtC", // Sepolia
+                            1: "https://ethereum.publicnode.com",
+                            56: "https://bsc-dataseed.binance.org",
+                            137: "https://polygon-rpc.com"
+                        },
+                        chainId: 11155111 // Sepolia chain ID
+                    });
 
-                            await walletConnectProvider.enable();
-                            provider = walletConnectProvider;
+                    try {
+                        await walletConnectProvider.enable();
+                        provider = walletConnectProvider;
 
-                            const accounts = await walletConnectProvider.request({
-                                method: 'eth_accounts'
-                            });
+                        // Subscribe to events
+                        walletConnectProvider.on("disconnect", () => {
+                            handleDisconnection();
+                        });
 
-                            if (accounts && accounts.length > 0) {
+                        walletConnectProvider.on("accountsChanged", (accounts) => {
+                            if (accounts.length > 0) {
                                 handleSuccessfulConnection(accounts[0]);
                             } else {
-                                throw new Error('No accounts found');
+                                handleDisconnection();
                             }
-                        } catch (wcError) {
-                            console.log("WalletConnect failed:", wcError);
-                            handleMobileDeepLinks();
+                        });
+
+                        const accounts = await walletConnectProvider.request({
+                            method: 'eth_accounts'
+                        });
+
+                        if (accounts && accounts.length > 0) {
+                            handleSuccessfulConnection(accounts[0]);
+                        } else {
+                            throw new Error('No accounts found');
                         }
-                    } else {
-                        alert('Please install MetaMask or use a mobile wallet!');
+                    } catch (wcError) {
+                        console.log("WalletConnect failed:", wcError);
+                        if (isMobile) {
+                            handleMobileDeepLinks();
+                        } else {
+                            alert('Please install a Web3 wallet or use a mobile wallet!');
+                        }
                     }
                 } catch (error) {
                     console.error('Connection error:', error);
-                    if (isMobile) handleMobileDeepLinks();
+                    alert('Failed to connect wallet. Please try again.');
                 }
             }
 
@@ -204,16 +218,32 @@
                 try {
                     if (walletConnectProvider) {
                         await walletConnectProvider.disconnect();
+                        walletConnectProvider.removeAllListeners();
                         walletConnectProvider = null;
-                    }
-                    if (provider && provider.disconnect) {
-                        await provider.disconnect();
                     }
                     provider = null;
                     handleDisconnection();
                 } catch (error) {
                     console.error('Disconnect error:', error);
-                    handleDisconnection(); // Force UI reset even if disconnect fails
+                    handleDisconnection();
+                }
+            }
+
+            function handleMobileDeepLinks() {
+                if (isMobile) {
+                    const currentUrl = window.location.href;
+                    const hasWalletApp = window.confirm('Do you have MetaMask or Trust Wallet installed?');
+
+                    if (hasWalletApp) {
+                        const dappUrl = encodeURIComponent(currentUrl);
+                        if (confirm('Open in MetaMask?')) {
+                            window.location.href = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+                        } else {
+                            window.location.href = `https://link.trustwallet.com/open_url?url=${dappUrl}`;
+                        }
+                    } else {
+                        window.location.href = 'https://metamask.app.link/dapp/';
+                    }
                 }
             }
 
@@ -238,17 +268,6 @@
                 document.getElementById('todo-form').style.display = 'none';
                 document.getElementById('todo-list').innerHTML = '';
                 provider = null;
-            }
-
-            function handleMobileDeepLinks() {
-                const dappUrl = encodeURIComponent(window.location.href);
-                // Try opening MetaMask first
-                window.location.href = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
-
-                // Fallback to Trust Wallet after a short delay if MetaMask doesn't open
-                setTimeout(() => {
-                    window.location.href = `https://link.trustwallet.com/open_url?url=${dappUrl}`;
-                }, 1000);
             }
 
             // Handle wallet events

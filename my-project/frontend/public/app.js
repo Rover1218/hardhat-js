@@ -24,13 +24,21 @@ function initializeApp() {
     const STORAGE_KEY = 'todolist_wallet_connected';
 
     async function checkStorageAndConnect() {
+        // First check if MetaMask is installed
+        if (!window.ethereum) {
+            alert('Please install MetaMask to use this application');
+            return;
+        }
+
         const wasConnected = localStorage.getItem(STORAGE_KEY) === 'true';
-        if (wasConnected && window.ethereum) {
+        if (wasConnected) {
             const accounts = await window.ethereum.request({
-                method: 'eth_accounts'  // This doesn't prompt, just checks
+                method: 'eth_accounts'
             });
             if (accounts.length > 0) {
-                await connectWallet(true); // Pass silent flag
+                await connectWallet(true);
+            } else {
+                localStorage.removeItem(STORAGE_KEY);
             }
         }
     }
@@ -39,15 +47,24 @@ function initializeApp() {
     document.querySelector('.loading-container').style.display = 'none';
 
     async function connectWallet(silent = false) {
+        // Check if MetaMask is installed
+        if (!window.ethereum) {
+            alert('Please install MetaMask to use this application');
+            return;
+        }
+
         const loadingBtn = document.getElementById('connect-wallet');
         loadingBtn.textContent = 'Connecting...';
         loadingBtn.disabled = true;
 
         try {
-            // Request MetaMask account access
-            const accounts = await window.ethereum.request({
-                method: silent ? 'eth_accounts' : 'eth_requestAccounts'
-            });
+            // Only prompt for connection if not silent mode
+            let accounts;
+            if (silent) {
+                accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            } else {
+                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            }
 
             if (accounts.length === 0) {
                 throw new Error('No accounts found');
@@ -80,7 +97,9 @@ function initializeApp() {
         } catch (error) {
             console.error('Error:', error);
             localStorage.removeItem(STORAGE_KEY);
-            !silent && alert(error.message || 'Failed to connect wallet');
+            if (!silent) {
+                alert(error.message || 'Failed to connect wallet');
+            }
         } finally {
             loadingBtn.disabled = false;
             loadingBtn.textContent = 'Connect Wallet';
@@ -278,8 +297,12 @@ function initializeApp() {
 
     // Update connect button event listener
     document.getElementById('connect-wallet').addEventListener('click', async () => {
+        if (!window.ethereum) {
+            alert('Please install MetaMask to use this application');
+            return;
+        }
         await checkNetwork();
-        await connectWallet();
+        await connectWallet(false); // Explicitly set silent to false for button click
     });
 
     document.getElementById('todo-form').addEventListener('submit', async (e) => {
