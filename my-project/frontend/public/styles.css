@@ -389,4 +389,34 @@ button.disabled {
     .todo-sections {
         flex-direction: column;
     }
+
+    .container {
+        padding: 1rem;
+        margin: 1rem;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    #connect-wallet,
+    #todo-form button {
+        font-size: 1rem;
+        padding: 10px 20px;
+    }
+
+    #todo-input {
+        font-size: 0.9rem;
+        padding: 10px 14px;
+    }
+
+    #todo-list li {
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .active-todos h2,
+    .completed-todos h2 {
+        font-size: 1rem;
+    }
 }

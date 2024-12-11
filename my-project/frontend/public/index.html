@@ -3,7 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Todo List App">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2387/2387635.png">
     <title>Todo List App</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -31,6 +36,40 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js" crossorigin="anonymous"
         referrerpolicy="no-referrer">
         </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (window.ethereum && window.ethereum.isMetaMask) {
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    document.getElementById('wallet-address').innerText = window.ethereum.selectedAddress;
+                    document.getElementById('connect-wallet').style.display = 'none';
+                    document.getElementById('todo-form').style.display = 'block';
+                } catch (error) {
+                    console.error('User denied account access');
+                }
+            } else {
+                document.getElementById('connect-wallet').addEventListener('click', async () => {
+                    if (window.ethereum) {
+                        try {
+                            await window.ethereum.request({ method: 'eth_requestAccounts' });
+                            document.getElementById('wallet-address').innerText = window.ethereum.selectedAddress;
+                            document.getElementById('connect-wallet').style.display = 'none';
+                            document.getElementById('todo-form').style.display = 'block';
+                        } catch (error) {
+                            console.error('User denied account access');
+                        }
+                    } else {
+                        if (isMobile) {
+                            alert('MetaMask is installed but not detected. Please open this app in the MetaMask browser.');
+                        } else {
+                            alert('MetaMask is not installed. Please install it to use this app.');
+                        }
+                    }
+                });
+            }
+        });
+    </script>
     <script src="app.js"></script>
 </body>
 
