@@ -14,6 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2387/2387635.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
 </head>
 
 <body>
@@ -39,34 +40,82 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            if (window.ethereum && window.ethereum.isMetaMask) {
+            const connectWalletBtn = document.getElementById('connect-wallet');
+            let provider = null;
+
+            async function connectWallet() {
                 try {
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    document.getElementById('wallet-address').innerText = window.ethereum.selectedAddress;
-                    document.getElementById('connect-wallet').style.display = 'none';
-                    document.getElementById('todo-form').style.display = 'block';
-                } catch (error) {
-                    console.error('User denied account access');
-                }
-            } else {
-                document.getElementById('connect-wallet').addEventListener('click', async () => {
+                    // First check if we're in a dapp browser
                     if (window.ethereum) {
+                        provider = window.ethereum;
+                        const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                        handleSuccessfulConnection(accounts[0]);
+                        return;
+                    }
+
+                    // If on mobile but not in a dapp browser, try WalletConnect
+                    if (isMobile) {
+                        provider = new WalletConnectProvider.default({
+                            rpc: {
+                                1: "https://ethereum.publicnode.com",
+                                56: "https://bsc-dataseed.binance.org",
+                                137: "https://polygon-rpc.com"
+                            },
+                            chainId: 1
+                        });
+
                         try {
-                            await window.ethereum.request({ method: 'eth_requestAccounts' });
-                            document.getElementById('wallet-address').innerText = window.ethereum.selectedAddress;
-                            document.getElementById('connect-wallet').style.display = 'none';
-                            document.getElementById('todo-form').style.display = 'block';
-                        } catch (error) {
-                            console.error('User denied account access');
-                        }
-                    } else {
-                        if (isMobile) {
-                            alert('MetaMask is installed but not detected. Please open this app in the MetaMask browser.');
-                        } else {
-                            alert('MetaMask is not installed. Please install it to use this app.');
+                            await provider.enable();
+                            const accounts = await provider.request({ method: 'eth_accounts' });
+                            handleSuccessfulConnection(accounts[0]);
+                            return;
+                        } catch (wcError) {
+                            console.log("WalletConnect failed, trying deep links");
+                            handleMobileDeepLinks();
                         }
                     }
+                } catch (error) {
+                    console.error('Connection error:', error);
+                    if (isMobile) handleMobileDeepLinks();
+                }
+            }
+
+            function handleSuccessfulConnection(address) {
+                document.getElementById('wallet-address').innerText = address;
+                connectWalletBtn.style.display = 'none';
+                document.getElementById('todo-form').style.display = 'block';
+            }
+
+            function handleMobileDeepLinks() {
+                const dappUrl = encodeURIComponent(window.location.href);
+                // Try opening MetaMask first
+                window.location.href = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+
+                // Fallback to Trust Wallet after a short delay if MetaMask doesn't open
+                setTimeout(() => {
+                    window.location.href = `https://link.trustwallet.com/open_url?url=${dappUrl}`;
+                }, 1000);
+            }
+
+            // Handle wallet events
+            if (window.ethereum) {
+                window.ethereum.on('accountsChanged', (accounts) => {
+                    if (accounts.length > 0) {
+                        handleSuccessfulConnection(accounts[0]);
+                    } else {
+                        window.location.reload();
+                    }
                 });
+            }
+
+            connectWalletBtn.addEventListener('click', connectWallet);
+
+            // Check for existing connection
+            if (window.ethereum) {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                if (accounts.length > 0) {
+                    handleSuccessfulConnection(accounts[0]);
+                }
             }
         });
     </script>
