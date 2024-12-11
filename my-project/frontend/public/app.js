@@ -39,11 +39,6 @@ function initializeApp() {
     document.querySelector('.loading-container').style.display = 'none';
 
     async function connectWallet(silent = false) {
-        if (typeof window.ethereum === 'undefined') {
-            !silent && alert('Please install MetaMask!');
-            return;
-        }
-
         const loadingBtn = document.getElementById('connect-wallet');
         loadingBtn.textContent = 'Connecting...';
         loadingBtn.disabled = true;

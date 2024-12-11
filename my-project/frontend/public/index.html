@@ -15,19 +15,128 @@
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2387/2387635.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+    <style>
+        .disconnect-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        #wallet-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .wallet-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .wallet-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ddd;
+        }
+
+        .status-indicator.connected {
+            background: #4CAF50;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+        }
+
+        .wallet-address {
+            font-family: monospace;
+            background: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            font-size: 14px;
+        }
+
+        #connect-wallet {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        #connect-wallet:hover {
+            background: #45a049;
+        }
+
+        .disconnect-btn {
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .disconnect-btn:hover {
+            background: #ff1744;
+        }
+
+        #wallet-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        #todo-form {
+            display: none;
+            /* Hide form by default */
+        }
+    </style>
 </head>
 
 <body>
     <div class="container">
         <h1><i class="fas fa-check-circle"></i> Blockchain Todo List</h1>
-        <div id="wallet-info">
-            <button id="connect-wallet">Connect Wallet</button>
-            <p id="wallet-address"></p>
+        <div class="wallet-container">
+            <div class="wallet-status">
+                <div id="status-indicator" class="status-indicator"></div>
+                <span id="connection-status">Not Connected</span>
+            </div>
+            <div id="wallet-info">
+                <button id="connect-wallet">
+                    <i class="fas fa-wallet"></i> Connect Wallet
+                </button>
+                <div id="wallet-address" class="wallet-address" style="display: none;"></div>
+                <button id="disconnect-wallet" class="disconnect-btn" style="display: none;">
+                    <i class="fas fa-sign-out-alt"></i> Disconnect
+                </button>
+            </div>
         </div>
-        <form id="todo-form" style="display: none;">
+
+        <!-- Fix the form structure -->
+        <form id="todo-form">
             <input type="text" id="todo-input" placeholder="Add a new task..." required>
             <button type="submit">Add Task</button>
         </form>
+
         <div id="loading" class="loading-container" style="display: none;">
             <div class="spinner"></div>
             <p>Processing transaction...</p>
@@ -41,6 +150,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const connectWalletBtn = document.getElementById('connect-wallet');
+            const disconnectBtn = document.getElementById('disconnect-wallet');
             let provider = null;
 
             async function connectWallet() {
@@ -80,10 +190,38 @@
                 }
             }
 
+            async function disconnectWallet() {
+                try {
+                    if (provider && provider.disconnect) {
+                        await provider.disconnect();
+                    }
+                    handleDisconnection();
+                } catch (error) {
+                    console.error('Disconnect error:', error);
+                }
+            }
+
             function handleSuccessfulConnection(address) {
-                document.getElementById('wallet-address').innerText = address;
+                const formattedAddress = `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+                document.getElementById('wallet-address').innerText = formattedAddress;
+                document.getElementById('wallet-address').style.display = 'block';
+                document.getElementById('status-indicator').classList.add('connected');
+                document.getElementById('connection-status').innerText = 'Connected';
                 connectWalletBtn.style.display = 'none';
+                disconnectBtn.style.display = 'inline-block';
                 document.getElementById('todo-form').style.display = 'block';
+            }
+
+            function handleDisconnection() {
+                document.getElementById('wallet-address').style.display = 'none';
+                document.getElementById('status-indicator').classList.remove('connected');
+                document.getElementById('connection-status').innerText = 'Not Connected';
+                document.getElementById('wallet-address').innerText = '';
+                connectWalletBtn.style.display = 'inline-block';
+                disconnectBtn.style.display = 'none';
+                document.getElementById('todo-form').style.display = 'none';
+                document.getElementById('todo-list').innerHTML = '';
+                provider = null;
             }
 
             function handleMobileDeepLinks() {
@@ -103,12 +241,17 @@
                     if (accounts.length > 0) {
                         handleSuccessfulConnection(accounts[0]);
                     } else {
-                        window.location.reload();
+                        handleDisconnection();
                     }
+                });
+
+                window.ethereum.on('disconnect', () => {
+                    handleDisconnection();
                 });
             }
 
             connectWalletBtn.addEventListener('click', connectWallet);
+            disconnectBtn.addEventListener('click', disconnectWallet);
 
             // Check for existing connection
             if (window.ethereum) {
